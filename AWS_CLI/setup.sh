@@ -25,9 +25,9 @@ while BUCKET_NAME_ORIGINAL != "" && BUCKET_NAME_COMPRESSED != ""; do
 end
 
     
-function doAction($action) {
+function doAction() {
     
-    case $action in
+    case $1 in
     1)
 
         echo ""
