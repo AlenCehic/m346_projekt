@@ -21,7 +21,7 @@ while BUCKET_NAME_ORIGINAL != "" && BUCKET_NAME_COMPRESSED != ""; do
     echo "------------------------------------------"
     echo "Nummer Wählen: " | (read action)
 
-    doAction($action)
+    doAction "$action"
 end
 
     
