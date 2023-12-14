@@ -11,7 +11,7 @@ ARN=$(aws sts get-caller-identity --query "Account" --output text)
 sed -i "s/ACCOUNT_ID/$ARN/g" ./configs/notification.json
 
 # Menu
-while BUCKET_NAME_ORIGINAL != "" && BUCKET_NAME_COMPRESSED != ""; do
+while [[ "$BUCKET_NAME_ORIGINAL" != "" && "$BUCKET_NAME_COMPRESSED" != "" ]]; do
     echo "Welche Aktion soll durchgefuehrt werden?:"
     echo "1. Bucket für upload aendern"
     echo "2. Bucket für download aendern"
@@ -19,10 +19,11 @@ while BUCKET_NAME_ORIGINAL != "" && BUCKET_NAME_COMPRESSED != ""; do
     echo "4. Exit"
     echo "5. Alle Buckets loeschen"
     echo "------------------------------------------"
-    echo "Nummer Wählen: " | (read action)
+    echo -n "Nummer Wählen: "
+    read action
 
     doAction "$action"
-end
+done
 
     
 function doAction() {
