@@ -4,11 +4,12 @@
 
 echo "Bitte warten..."
 
-if aws lambda get-function --function-name compressImage 2>/dev/null; then
+if aws lambda get-function --function-name compressImage > /dev/null 2>&1; then
     BUCKET_NAME_COMPRESSED=$(aws lambda get-function-configuration --function-name compressImage --query "Environment.Variables.BUCKET_NAME_COMPRESSED" --output text)
     BUCKET_NAME_ORIGINAL=$(aws lambda get-function-configuration --function-name compressImage --query "Environment.Variables.BUCKET_NAME_ORIGINAL" --output text)
     PERCENTAGE_RESIZE=$(aws lambda get-function-configuration --function-name compressImage --query "Environment.Variables.PERCENTAGE_RESIZE" --output text)
 fi
+
 
 echo $BUCKET_NAME_COMPRESSED
 echo $BUCKET_NAME_ORIGINAL
@@ -96,27 +97,27 @@ function doAction() {
             aws s3 rb s3://$bucket --force
             aws lambda update-function-configuration --function-name compressImage --environment "Variables={BUCKET_NAME_ORIGINAL=}"
             aws lambda update-function-configuration --function-name compressImage --environment "Variables={BUCKET_NAME_COMPRESSED=}"
-            echo "Welche Aktion soll durchgefuehrt werden?"
-            echo "1. Neu Aufsetzen"
-            echo "2. Exit"
-            echo "------------------------------"
-            echo -n "Nummer Waehlen: "
-            read postDelete
-
-            case $1 in
-            1)
-                break
-                ;;
-            2)
-                echo "Ende"
-                exit 0
-                ;;
-            *)
-                echo "Ungueltige Auswahl, erneut eingeben: "
-                ;;
-            esac
 
         done
+    echo "Welche Aktion soll durchgefuehrt werden?"
+    echo "1. Neu Aufsetzen"
+    echo "2. Exit"
+    echo "------------------------------"
+    echo -n "Nummer Waehlen: "
+    read postDelete
+
+    case $postDelete in
+    1)
+	break
+	;;
+    2)
+	echo "Ende"
+	exit 0
+	;;
+    *)
+	echo "Ungueltige Auswahl, erneut eingeben: "
+	;;
+    esac
         ;;
     *)
         # Invalid selection
@@ -142,7 +143,7 @@ done
 
 while true; do
     echo ""
-    echo "Namen des Buckets fuer originales Bild eingeben (kleinbuchstaben): "
+    echo "Namen des Buckets fuer originales Bild eingeben (NUR kleinbuchstaben!): "
     read BUCKET_NAME_ORIGINAL
 
     RESULT=$(aws s3api head-bucket --bucket $BUCKET_NAME_ORIGINAL 2>&1)
@@ -168,7 +169,7 @@ while true; do
 done
 
 while true; do
-    echo "Bucketnamen für verkleinertes Bild angeben (kleinbuchstaben): "
+    echo "Bucketnamen für verkleinertes Bild angeben (NUR kleinbuchstaben!): "
     read BUCKET_NAME_COMPRESSED
 
     RESULT=$(aws s3api head-bucket --bucket $BUCKET_NAME_COMPRESSED 2>&1)
@@ -202,19 +203,21 @@ while [[ ! "$PERCENTAGE_RESIZE" ]]; do
     fi
 done
 
+echo "bitte warten... "
+
 aws s3api create-bucket --bucket "$BUCKET_NAME_COMPRESSED" --region us-east-1
 
 aws s3api create-bucket --bucket "$BUCKET_NAME_ORIGINAL" --region us-east-1
 
 if ! aws lambda get-function --function-name compressImage 2>/dev/null; then
-    aws lambda create-function --function-name compressImage --runtime nodejs18.x --role ARN:aws:iam::$ARN:role/LabRole --handler lambdaScript.handler --zip-file fileb://.lambdaScript.zip --memory-size 256
+    aws lambda create-function --function-name compressImage --runtime nodejs18.x --role arn:aws:iam::$ARN:role/LabRole --handler lambdaScript.handler --zip-file fileb://lambdaScript.zip --memory-size 256
 
-    aws lambda add-permission --function-name compressImage --action "lambda:InvokeFunction" --principal s3.amazonaws.com --source-ARN "arn:aws:s3:::$BUCKET_NAME_ORIGINAL" --statement-id "$BUCKET_NAME_ORIGINAL"
+    aws lambda add-permission --function-name compressImage --action "lambda:InvokeFunction" --principal s3.amazonaws.com --source-arn "arn:aws:s3:::$BUCKET_NAME_ORIGINAL" --statement-id "$BUCKET_NAME_ORIGINAL"
 
     aws s3api put-bucket-notification-configuration --bucket "$BUCKET_NAME_ORIGINAL" --notification-configuration '{
         "LambdaFunctionConfigurations": [
             {
-                "LambdaFunctionARN": "arn:aws:lambda:us-east-1:'$ARN':function:compressImage",
+                "LambdaFunctionArn": "arn:aws:lambda:us-east-1:'$ARN':function:compressImage",
                 "Events": [
                     "s3:ObjectCreated:Put"
                 ]
@@ -231,10 +234,10 @@ if [ -z "$BUCKET_NAME_ORIGINAL" ] || [ -z "$BUCKET_NAME_COMPRESSED" ] || [ ! "$P
     exit 1
 fi
 
-aws s3 cp ./testimage/placeholder-gbs.png s3://$BUCKET_NAME_ORIGINAL/placeholder-gbs.png
+aws s3 cp ./testimage/placeholder-gbs.jpeg s3://$BUCKET_NAME_ORIGINAL/placeholder-gbs.jpeg
 
 LATEST_IMAGE=$(aws s3 ls s3://$BUCKET_NAME_COMPRESSED --recursive | sort | tail -n 1 | awk '{print $4}')
 
-echo "Das Bild kann gefunden werden unter: blabla"
 
-aws s3 cp s3://$BUCKET_NAME_COMPRESSED/$LATEST_IMAGE #pathToOutput
+aws s3 cp s3://$BUCKET_NAME_COMPRESSED/$LATEST_IMAGE "/home"
+echo "Das Bild kann gefunden werden unter: home"
