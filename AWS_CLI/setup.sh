@@ -2,14 +2,17 @@
 # Datum: 07.12.2023
 # Skript zur Erstellung der Lambda Funktionen und der Buckets
 
+echo "Bitte warten..."
+
 if aws lambda get-function --function-name compressImage 2>/dev/null; then
     BUCKET_NAME_COMPRESSED=$(aws lambda get-function-configuration --function-name compressImage --query "Environment.Variables.BUCKET_NAME_COMPRESSED" --output text)
     BUCKET_NAME_ORIGINAL=$(aws lambda get-function-configuration --function-name compressImage --query "Environment.Variables.BUCKET_NAME_ORIGINAL" --output text)
+    PERCENTAGE_RESIZE=$(aws lambda get-function-configuration --function-name compressImage --query "Environment.Variables.PERCENTAGE_RESIZE" --output text)
 fi
 
 echo $BUCKET_NAME_COMPRESSED
 echo $BUCKET_NAME_ORIGINAL
-PERCENTAGE_RESIZE=0
+echo $PERCENTAGE_RESIZE
 
 ARN=$(aws sts get-caller-identity --query "Account" --output text)
 
@@ -203,18 +206,15 @@ aws s3api create-bucket --bucket "$BUCKET_NAME_COMPRESSED" --region us-east-1
 
 aws s3api create-bucket --bucket "$BUCKET_NAME_ORIGINAL" --region us-east-1
 
-if aws lambda get-function --function-name compressImage 2>/dev/null; then
-
-    aws lambda delete-function --function-name compressImage
-
+if ! aws lambda get-function --function-name compressImage 2>/dev/null; then
     aws lambda create-function --function-name compressImage --runtime nodejs18.x --role ARN:aws:iam::$ARN:role/LabRole --handler lambdaScript.handler --zip-file fileb://.lambdaScript.zip --memory-size 256
 
-    aws lambda add-permission --function-name compressImage --action "lambda:InvokeFunction" --principal s3.amazon.com --source-ARN ARN:aws:s3:::$BUCKET_NAME_ORIGINAL --statement-id "$BUCKET_NAME_ORIGINAL"
+    aws lambda add-permission --function-name compressImage --action "lambda:InvokeFunction" --principal s3.amazonaws.com --source-ARN "arn:aws:s3:::$BUCKET_NAME_ORIGINAL" --statement-id "$BUCKET_NAME_ORIGINAL"
 
     aws s3api put-bucket-notification-configuration --bucket "$BUCKET_NAME_ORIGINAL" --notification-configuration '{
         "LambdaFunctionConfigurations": [
             {
-                "LambdaFunctionARN": "ARN:aws:lambda:us-east-1:'$ARN':function:compressImage",
+                "LambdaFunctionARN": "arn:aws:lambda:us-east-1:'$ARN':function:compressImage",
                 "Events": [
                     "s3:ObjectCreated:Put"
                 ]
@@ -222,11 +222,16 @@ if aws lambda get-function --function-name compressImage 2>/dev/null; then
         ]
     }'
 
+    aws lambda update-function-configuration --function-name compressImage --environment "Variables={BUCKET_NAME_ORIGINAL=$BUCKET_NAME_ORIGINAL,BUCKET_NAME_COMPRESSED=$BUCKET_NAME_COMPRESSED,PERCENTAGE_RESIZE=$PERCENTAGE_RESIZE}" --query "Environment"
 fi
-    
-aws lambda update-function-configuration --function-name compressImage --environment "Variables={BUCKET_NAME_ORIGINAL=$BUCKET_NAME_ORIGINAL,BUCKET_NAME_COMPRESSED=$BUCKET_NAME_COMPRESSED,PERCENTAGE_RESIZE=$PERCENTAGE_RESIZE}" --query "Environment"
 
-aws s3 cp ./testimage/enchantments.png s3://$BUCKET_NAME_ORIGINAL/enchantments.png
+# Stelle sicher, dass die Umgebungsvariablen Werte enthalten
+if [ -z "$BUCKET_NAME_ORIGINAL" ] || [ -z "$BUCKET_NAME_COMPRESSED" ] || [ ! "$PERCENTAGE_RESIZE" ]; then
+    echo "Fehler: Umgebungsvariablen fehlen oder sind nicht gesetzt."
+    exit 1
+fi
+
+aws s3 cp ./testimage/placeholder-gbs.png s3://$BUCKET_NAME_ORIGINAL/placeholder-gbs.png
 
 LATEST_IMAGE=$(aws s3 ls s3://$BUCKET_NAME_COMPRESSED --recursive | sort | tail -n 1 | awk '{print $4}')
 
