@@ -1,4 +1,4 @@
-// Autor: Matthias Hug, Alain Jehic
+// Autor: Matthias Hug, Alen Cehic
 // Datum: 2023-12-14
 // Version: 1.0
 // Beschreibung: Lambda Sckript für das verkleinern von Bildern
@@ -38,7 +38,7 @@ exports.handler = async (event, context) => {
         // Ladet das BIld in den Bucket hoch
         await s3.putObject({
             Body: resizedImage,
-            Bucket: s3.listObjects(process.env.BUCKET_NAME_COMPRESSED).params,
+            Bucket: s3.listObjects({ Bucket: process.env.BUCKET_NAME_COMPRESSED }).params,
             Key: `resized-${key}`,
             ContentType: 'image/jpeg'
         }).promise();
