@@ -2,8 +2,10 @@
 # Datum: 07.12.2023
 # Skript zur Erstellung der Lambda Funktionen und der Buckets
 
-BUCKET_NAME_ORIGINAL="L"
-BUCKET_NAME_COMPRESSED="S"
+BUCKET_NAME_ORIGINAL=aws lambda get-function-configuration --function-name compressImage --environment "{ \"Variables\": $BUCKET_NAME_ORIGINAL }"
+BUCKET_NAME_COMPRESSED=aws lambda get-function-configuration --function-name compressImage --environment "{ \"Variables\": $BUCKET_NAME_COMPRESSED }"
+echo $BUCKET_NAME_COMPRESSED
+echo $BUCKET_NAME_ORIGINAL
 PERCENTAGE_RESIZE=0
 
 ARN=$(aws sts get-caller-identity --query "Account" --output text)
