@@ -40,59 +40,81 @@ function doAction() {
         fi
         ;;
     2)
+        echo ""
+        echo "Name des neuen Buckets eingeben:"
+        read BUCKET_NAME_COMPRESSED
+
+        RESULT=$(aws s3api head-bucket --bucket $BUCKET_NAME_COMPRESSED 2>&1)
+
+        if [[ $RESULT == *"Not Found"* ]]; then
+            echo "Bucket $BUCKET_NAME_COMPRESSED ist verfuegbar"
             echo ""
-            echo "Name des neuen Buckets eingeben:"
-            read BUCKET_NAME_COMPRESSED
+            echo "-----------------------------"
+            echo ""
+            aws s3api create-bucket --bucket "$BUCKET_NAME_COMPRESSED" --region us-east-1
 
-            RESULT=$(aws s3api head-bucket --bucket $BUCKET_NAME_COMPRESSED 2>&1)
+            # Aendert die Variable BUCKET_NAME_COMPRESSED in der lambda Funktion
+            NEW_ENVVARS=$(aws lambda get-function-configuration --function-name compressImage --query "Environment.Variables | merge(@, \`{\"BUCKET_NAME_COMPRESSED\":\"$BUCKET_NAME_COMPRESSED\"}\`)")
+            aws lambda update-function-configuration --function-name compressImage --environment "{ \"Variables\": $NEW_ENVVARS }"
 
-            if [[ $RESULT == *"Not Found"* ]]; then
-                echo "Bucket $BUCKET_NAME_COMPRESSED ist verfuegbar"
-                echo ""
-                echo "-----------------------------"
-                echo ""
-                aws s3api create-bucket --bucket "$BUCKET_NAME_COMPRESSED" --region us-east-1
+            echo "-----------------------------"
+            break
+        else
+            echo "Bucket $BUCKET_NAME_COMPRESSED ist nicht verfuegbar, bitte nochmals versuchen"
+            echo ""
+            echo "-----------------------------"
+        fi
+        ;;
+    3)
+        read -p "Geben Sie einen Prozentsatz fuer die Verkleinerung des Bildes ein (als ganze Zahl, ohne Prozentzeichen): " PERCENTAGE_RESIZE
 
-                # Aendert die Variable BUCKET_NAME_COMPRESSED in der lambda Funktion
-                NEW_ENVVARS=$(aws lambda get-function-configuration --function-name compressImage --query "Environment.Variables | merge(@, \`{\"BUCKET_NAME_COMPRESSED\":\"$BUCKET_NAME_COMPRESSED\"}\`)")
-                aws lambda update-function-configuration --function-name compressImage --environment "{ \"Variables\": $NEW_ENVVARS }"
+        if [[ $PERCENTAGE_RESIZE =~ ^[0-9]+$ ]]; then
+            echo "Sie haben $PERCENTAGE_RESIZE% eingegeben."
+            NEW_ENVVARS=$(aws lambda get-function-configuration --function-name compressImage --query "Environment.Variables | merge(@, \`{\"PERCENTAGE_RESIZE\":\"$PERCENTAGE_RESIZE\"}\`)")
+            aws lambda update-function-configuration --function-name compressImage --environment "{ \"Variables\": $NEW_ENVVARS }"
+            break
+        else
+            echo "Fehler: Sie haben keinen gültigen Prozentsatz eingegeben."
+        fi
+        ;;
+    4)
+        echo "Ende"
+        exit 0
+        ;;
+    5)
+        # Löscht alle Buckets
+        aws s3 ls | awk '{print $3}' | while read bucket; do
+            echo "Deleting bucket $bucket"
+            aws s3 rb s3://$bucket --force
+            aws lambda update-function-configuration --function-name compressImage --environment "Variables={BUCKET_NAME_ORIGINAL=}"
+            aws lambda update-function-configuration --function-name compressImage --environment "Variables={BUCKET_NAME_COMPRESSED=}"
+            echo "Welche Aktion soll durchgefuehrt werden?"
+            echo "1. Neu Aufsetzen"
+            echo "2. Exit"
+            echo "------------------------------"
+            echo -n "Nummer Waehlen: "
+            read postDelete
 
-                echo "-----------------------------"
+            case $1 in
+            1)
                 break
-            else
-                echo "Bucket $BUCKET_NAME_COMPRESSED ist nicht verfuegbar, bitte nochmals versuchen"
-                echo ""
-                echo "-----------------------------"
-            fi
-            ;;
-        3)
-            read -p "Geben Sie einen Prozentsatz fuer die Verkleinerung des Bildes ein (als ganze Zahl, ohne Prozentzeichen): " PERCENTAGE_RESIZE
+                ;;
+            2)
+                echo "Ende"
+                exit 0
+                ;;
+            *)
+                echo "Ungueltige Auswahl, erneut eingeben: "
+                ;;
+            esac
 
-            if [[ $PERCENTAGE_RESIZE =~ ^[0-9]+$ ]]; then
-                echo "Sie haben $PERCENTAGE_RESIZE% eingegeben."
-                NEW_ENVVARS=$(aws lambda get-function-configuration --function-name compressImage --query "Environment.Variables | merge(@, \`{\"PERCENTAGE_RESIZE\":\"$PERCENTAGE_RESIZE\"}\`)")
-                aws lambda update-function-configuration --function-name compressImage --environment "{ \"Variables\": $NEW_ENVVARS }"
-                break
-            else
-                echo "Fehler: Sie haben keinen gültigen Prozentsatz eingegeben."
-            fi
-            ;;
-        4)
-            echo "Ende"
-            exit 0
-            ;;
-        5)
-            # Löscht alle Buckets
-            aws s3 ls | awk '{print $3}' | while read bucket; do
-                echo "Deleting bucket $bucket"
-                aws s3 rb s3://$bucket --force
-            done
-            ;;
-        *)
-            # Invalid selection
-            echo "Ungueltige Auswahl wähle erneut: "
-            ;;
-        esac
+        done
+        ;;
+    *)
+        # Invalid selection
+        echo "Ungueltige Auswahl wähle erneut: "
+        ;;
+    esac
 }
 
 # Menu
@@ -110,94 +132,94 @@ while [[ "$BUCKET_NAME_ORIGINAL" != "" && "$BUCKET_NAME_COMPRESSED" != "" ]]; do
     doAction "$action"
 done
 
+while [[ "$BUCKET_NAME_ORIGINAL" == "" ]]; do
+    echo ""
+    echo "Namen des Buckets fuer originales Bild eingeben (kleinbuchstaben): "
+    read BUCKET_NAME_ORIGINAL
 
-# while true; do
-#     echo ""
-#     echo "Namen des Buckets fuer originales Bild eingeben (kleinbuchstaben): "
-#     read BUCKET_NAME_ORIGINAL
-
-#     RESULT=$(aws s3api head-bucket --bucket $BUCKET_NAME_ORIGINAL 2>&1)
+    RESULT=$(aws s3api head-bucket --bucket $BUCKET_NAME_ORIGINAL 2>&1)
 
 
-#     sed -i "s/ACCOUNT_ID/$ARN/g" ./configs/notification.json
+    sed -i "s/ACCOUNT_ID/$ARN/g" ./configs/notification.json
 
-#     if [[ $RESULT == *"Not Found"* ]]; then
-#         echo ""
-#         echo "Bucket $BUCKET_NAME_ORIGINAL ist verfuegbar"
-#         echo ""
-#         echo "bitte warten"
-#         echo ""
-#         echo "-------------------------"
-#         echo ""
-#         aws s3api create-bucket --bucket "$BUCKET_NAME_ORIGINAL" --region us-east-1
-#         echo "-------------------------"
-#         break
-#     else
-#         echo "Bucket $BUCKET_NAME_ORIGINAL ist nicht verfuegbar, bitte erneut versuchen"
-#         echo ""
-#         echo "-------------------------"
-#     fi
-# done
+    if [[ $RESULT == *"Not Found"* ]]; then
+        echo ""
+        echo "Bucket $BUCKET_NAME_ORIGINAL ist verfuegbar"
+        echo ""
+        echo "bitte warten"
+        echo ""
+        echo "-------------------------"
+        echo ""
+        aws s3api create-bucket --bucket "$BUCKET_NAME_ORIGINAL" --region us-east-1
+        echo "-------------------------"
+        break
+    else
+        echo "Bucket $BUCKET_NAME_ORIGINAL ist nicht verfuegbar, bitte erneut versuchen"
+        echo ""
+        echo "-------------------------"
+    fi
+done
 
-# while true; do
-#     echo "Bucketnamen für verkleinertes Bild angeben (kleinbuchstaben): "
-#     read BUCKET_NAME_COMPRESSED
+while [[ "$BUCKET_NAME_COMPRESSED" == "" ]]; do
+    echo "Bucketnamen für verkleinertes Bild angeben (kleinbuchstaben): "
+    read BUCKET_NAME_COMPRESSED
 
-#     RESULT=$(aws s3api head-bucket --bucket $BUCKET_NAME_COMPRESSED 2>&1)
+    RESULT=$(aws s3api head-bucket --bucket $BUCKET_NAME_COMPRESSED 2>&1)
 
-#     if [[ $RESULT == *"not Found"* ]]; then
-#         echo ""
-#         echo "Bucket $BUCKET_NAME_COMPRESSED ist verfuegbar"
-#         echo ""
-#         echo "bitte warten"
-#         echo ""
-#         echo "------------------------"
-#         echo ""
-#         aws s3api create-bucket --bucket "$BUCKET_NAME_COMPRESSED" --region us-east-1
-#         echo "------------------------"
-#         break
-#     else
-#         echo "Bucket $BUCKET_NAME_COMPRESSED not avaiable, try again"
-#         echo ""
-#         echo "------------------------"
-#         echo ""
-#     fi
-# done
+    if [[ $RESULT == *"not Found"* ]]; then
+        echo ""
+        echo "Bucket $BUCKET_NAME_COMPRESSED ist verfuegbar"
+        echo ""
+        echo "bitte warten"
+        echo ""
+        echo "------------------------"
+        echo ""
+        aws s3api create-bucket --bucket "$BUCKET_NAME_COMPRESSED" --region us-east-1
+        echo "------------------------"
+        break
+    else
+        echo "Bucket $BUCKET_NAME_COMPRESSED not avaiable, try again"
+        echo ""
+        echo "------------------------"
+        echo ""
+    fi
+done
 
-# while true; do
-#     read -p "Prozentsatz fuer Verkleinerung angeben (ganze Zahl, kein Prozentzeichen): " PERCENTAGE_RESIZE
+while [[ ! "$PERCENTAGE_RESIZE" ]]; do
+    read -p "Prozentsatz fuer Verkleinerung angeben (ganze Zahl, kein Prozentzeichen): " PERCENTAGE_RESIZE
 
-#     if [[ $PERCENTAGE_RESIZE =~ ^[0-9]+$ ]]; then
-#         echo "$PERCENTAGE_RESIZE% eingegeben."
-#         break
-#     else
-#         echo "Fehler: Prozentsatz nicht gültig."
-#     fi
-# done
+    if [[ $PERCENTAGE_RESIZE =~ ^[0-9]+$ ]]; then
+        echo "$PERCENTAGE_RESIZE% eingegeben."
+        break
+    else
+        echo "Fehler: Prozentsatz nicht gültig."
+    fi
+done
 
-# aws lambda delte-function --function-name smallImage
+aws lambda delete-function --function-name smallImage
 
-# aws lambda create-function --function-name smallImage --runtime nodejs18.x --role ARN:aws:iam::$ARN:role/LabRole --handler lambdaScript.handler --zip-file fileb://.lambdaScript.zip --memory-size 256
+aws lambda create-function --function-name smallImage --runtime nodejs18.x --role ARN:aws:iam::$ARN:role/LabRole --handler lambdaScript.handler --zip-file fileb://.lambdaScript.zip --memory-size 256
 
-# aws lambda add-permission --function-name smallImage --action "lambda:InvokeFunction" --principal s3.amazon.com --source-ARN ARN:aws:s3:::$BUCKET_NAME_ORIGINAL --statement-id "$BUCKET_NAME_ORIGINAL"
+aws lambda add-permission --function-name smallImage --action "lambda:InvokeFunction" --principal s3.amazon.com --source-ARN ARN:aws:s3:::$BUCKET_NAME_ORIGINAL --statement-id "$BUCKET_NAME_ORIGINAL"
 
-# aws s3api put-bucket-notification-configuration --bucket "$BUCKET_NAME_ORIGINAL" --notification-configuration '{
-#     "LambdaFunctionConfigurations": [
-#         {
-#             "LambdaFunctionARN": "ARN:aws:lambda:us-east-1:'$ARN':function:smallImage",
-#             "Events": [
-#                 "s3:ObjectCreated:Put"
-#             ]
-#         }
-#     ]
-# }'
+aws s3api put-bucket-notification-configuration --bucket "$BUCKET_NAME_ORIGINAL" --notification-configuration '{
+    "LambdaFunctionConfigurations": [
+        {
+            "LambdaFunctionARN": "ARN:aws:lambda:us-east-1:'$ARN':function:smallImage",
+            "Events": [
+                "s3:ObjectCreated:Put"
+            ]
+        }
+    ]
+}'
 
-# aws lambda update-function-configuration --function-name smallImage --environment "Variables={BUCKET_NAME_ORIGINAL=$BUCKET_NAME_ORIGINAL,BUCKET_NAME_COMPRESSED=$BUCKET_NAME_COMPRESSED,PERCENTAGE_RESIZE=$PERCENTAGE_RESIZE}" --query "Environment"
+aws lambda update-function-configuration --function-name smallImage --environment "Variables={BUCKET_NAME_ORIGINAL=$BUCKET_NAME_ORIGINAL,BUCKET_NAME_COMPRESSED=$BUCKET_NAME_COMPRESSED,PERCENTAGE_RESIZE=$PERCENTAGE_RESIZE}" --query "Environment"
 
-# aws s3 cp ./testimage/enchantments.png s3://$BUCKET_NAME_ORIGINAL/enchantments.png
+aws s3 cp ./testimage/enchantments.png s3://$BUCKET_NAME_ORIGINAL/enchantments.png
 
-# LATEST_IMAGE=$(aws s3 ls s3://$BUCKET_NAME_COMPRESSED --recursive | sort | tail -n 1 | awk '{print $4}')
+LATEST_IMAGE=$(aws s3 ls s3://$BUCKET_NAME_COMPRESSED --recursive | sort | tail -n 1 | awk '{print $4}')
 
-# echo "Das Bild kann gefunden werden unter: blabla"
+echo "Das Bild kann gefunden werden unter: blabla"
 
-# aws s3 cp s3://$BUCKET_NAME_COMPRESSED/$LATEST_IMAGE #pathToOutput
+aws s3 cp s3://$BUCKET_NAME_COMPRESSED/$LATEST_IMAGE #pathToOutput
+fi
