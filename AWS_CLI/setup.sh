@@ -3,8 +3,8 @@
 # Skript zur Erstellung der Lambda Funktionen und der Buckets
 
 if aws lambda get-function --function-name compressImage 2>/dev/null; then
-    $BUCKET_NAME_COMPRESSED = $(aws lambda get-function-configuration --function-name compressImage --environment "{ \"Variables\": $BUCKET_NAME_COMPRESSED }")
-    $BUCKET_NAME_ORIGINAL = $(aws lambda get-function-configuration --function-name compressImage --environment "{ \"Variables\": $BUCKET_NAME_ORIGINAL }")
+    BUCKET_NAME_COMPRESSED=$(aws lambda get-function-configuration --function-name compressImage --query "Environment.Variables.BUCKET_NAME_COMPRESSED" --output text)
+    BUCKET_NAME_ORIGINAL=$(aws lambda get-function-configuration --function-name compressImage --query "Environment.Variables.BUCKET_NAME_ORIGINAL" --output text)
 fi
 
 echo $BUCKET_NAME_COMPRESSED
@@ -222,14 +222,14 @@ if aws lambda get-function --function-name compressImage 2>/dev/null; then
         ]
     }'
 
-    aws lambda update-function-configuration --function-name compressImage --environment "Variables={BUCKET_NAME_ORIGINAL=$BUCKET_NAME_ORIGINAL,BUCKET_NAME_COMPRESSED=$BUCKET_NAME_COMPRESSED,PERCENTAGE_RESIZE=$PERCENTAGE_RESIZE}" --query "Environment"
-
-    aws s3 cp ./testimage/enchantments.png s3://$BUCKET_NAME_ORIGINAL/enchantments.png
-
-    LATEST_IMAGE=$(aws s3 ls s3://$BUCKET_NAME_COMPRESSED --recursive | sort | tail -n 1 | awk '{print $4}')
-
-    echo "Das Bild kann gefunden werden unter: blabla"
-
-    aws s3 cp s3://$BUCKET_NAME_COMPRESSED/$LATEST_IMAGE #pathToOutput
-
 fi
+    
+aws lambda update-function-configuration --function-name compressImage --environment "Variables={BUCKET_NAME_ORIGINAL=$BUCKET_NAME_ORIGINAL,BUCKET_NAME_COMPRESSED=$BUCKET_NAME_COMPRESSED,PERCENTAGE_RESIZE=$PERCENTAGE_RESIZE}" --query "Environment"
+
+aws s3 cp ./testimage/enchantments.png s3://$BUCKET_NAME_ORIGINAL/enchantments.png
+
+LATEST_IMAGE=$(aws s3 ls s3://$BUCKET_NAME_COMPRESSED --recursive | sort | tail -n 1 | awk '{print $4}')
+
+echo "Das Bild kann gefunden werden unter: blabla"
+
+aws s3 cp s3://$BUCKET_NAME_COMPRESSED/$LATEST_IMAGE #pathToOutput
