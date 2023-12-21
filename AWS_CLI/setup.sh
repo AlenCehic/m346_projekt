@@ -198,18 +198,18 @@ aws s3api create-bucket --bucket "$BUCKET_NAME_COMPRESSED" --region us-east-1
 
 aws s3api create-bucket --bucket "$BUCKET_NAME_ORIGINAL" --region us-east-1
 
-if aws lambda get-function --function-name smallImage 2>/dev/null; then
+if aws lambda get-function --function-name compressImage 2>/dev/null; then
 
-    aws lambda delete-function --function-name smallImage
+    aws lambda delete-function --function-name compressImage
 
-    aws lambda create-function --function-name smallImage --runtime nodejs18.x --role ARN:aws:iam::$ARN:role/LabRole --handler lambdaScript.handler --zip-file fileb://.lambdaScript.zip --memory-size 256
+    aws lambda create-function --function-name compressImage --runtime nodejs18.x --role ARN:aws:iam::$ARN:role/LabRole --handler lambdaScript.handler --zip-file fileb://.lambdaScript.zip --memory-size 256
 
-    aws lambda add-permission --function-name smallImage --action "lambda:InvokeFunction" --principal s3.amazon.com --source-ARN ARN:aws:s3:::$BUCKET_NAME_ORIGINAL --statement-id "$BUCKET_NAME_ORIGINAL"
+    aws lambda add-permission --function-name compressImage --action "lambda:InvokeFunction" --principal s3.amazon.com --source-ARN ARN:aws:s3:::$BUCKET_NAME_ORIGINAL --statement-id "$BUCKET_NAME_ORIGINAL"
 
     aws s3api put-bucket-notification-configuration --bucket "$BUCKET_NAME_ORIGINAL" --notification-configuration '{
         "LambdaFunctionConfigurations": [
             {
-                "LambdaFunctionARN": "ARN:aws:lambda:us-east-1:'$ARN':function:smallImage",
+                "LambdaFunctionARN": "ARN:aws:lambda:us-east-1:'$ARN':function:compressImage",
                 "Events": [
                     "s3:ObjectCreated:Put"
                 ]
@@ -217,7 +217,7 @@ if aws lambda get-function --function-name smallImage 2>/dev/null; then
         ]
     }'
 
-    aws lambda update-function-configuration --function-name smallImage --environment "Variables={BUCKET_NAME_ORIGINAL=$BUCKET_NAME_ORIGINAL,BUCKET_NAME_COMPRESSED=$BUCKET_NAME_COMPRESSED,PERCENTAGE_RESIZE=$PERCENTAGE_RESIZE}" --query "Environment"
+    aws lambda update-function-configuration --function-name compressImage --environment "Variables={BUCKET_NAME_ORIGINAL=$BUCKET_NAME_ORIGINAL,BUCKET_NAME_COMPRESSED=$BUCKET_NAME_COMPRESSED,PERCENTAGE_RESIZE=$PERCENTAGE_RESIZE}" --query "Environment"
 
     aws s3 cp ./testimage/enchantments.png s3://$BUCKET_NAME_ORIGINAL/enchantments.png
 
@@ -226,5 +226,5 @@ if aws lambda get-function --function-name smallImage 2>/dev/null; then
     echo "Das Bild kann gefunden werden unter: blabla"
 
     aws s3 cp s3://$BUCKET_NAME_COMPRESSED/$LATEST_IMAGE #pathToOutput
-    
+
 fi
