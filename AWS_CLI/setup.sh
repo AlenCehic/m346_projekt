@@ -137,7 +137,7 @@ while [[ "$BUCKET_NAME_ORIGINAL" != "" && "$BUCKET_NAME_COMPRESSED" != "" ]]; do
     doAction "$action"
 done
 
-while [[ "$BUCKET_NAME_ORIGINAL" == "" ]]; do
+while true; do
     echo ""
     echo "Namen des Buckets fuer originales Bild eingeben (kleinbuchstaben): "
     read BUCKET_NAME_ORIGINAL
@@ -164,7 +164,7 @@ while [[ "$BUCKET_NAME_ORIGINAL" == "" ]]; do
     fi
 done
 
-while [[ "$BUCKET_NAME_COMPRESSED" == "" ]]; do
+while true; do
     echo "Bucketnamen für verkleinertes Bild angeben (kleinbuchstaben): "
     read BUCKET_NAME_COMPRESSED
 
