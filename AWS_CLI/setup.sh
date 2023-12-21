@@ -2,8 +2,13 @@
 # Datum: 07.12.2023
 # Skript zur Erstellung der Lambda Funktionen und der Buckets
 
+<<<<<<< HEAD
 BUCKET_NAME_ORIGINAL=$(aws lambda get-function-configuration --function-name compressImage --environment "{ \"Variables\": $BUCKET_NAME_ORIGINAL }")
 BUCKET_NAME_COMPRESSED=$(aws lambda get-function-configuration --function-name compressImage --environment "{ \"Variables\": $BUCKET_NAME_COMPRESSED }")
+=======
+BUCKET_NAME_ORIGINAL=aws lambda get-function-configuration --function-name compressImage --environment "{ \"Variables\": $BUCKET_NAME_ORIGINAL }"
+BUCKET_NAME_COMPRESSED=aws lambda get-function-configuration --function-name compressImage --environment "{ \"Variables\": $BUCKET_NAME_COMPRESSED }"
+>>>>>>> dc48cf437239ddbab539b4e2acc25e3af21f149e
 echo $BUCKET_NAME_COMPRESSED
 echo $BUCKET_NAME_ORIGINAL
 PERCENTAGE_RESIZE=0
