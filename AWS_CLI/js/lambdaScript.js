@@ -5,7 +5,7 @@
 
 
 
-'use stict';
+'use strict';
 
 
 const AWS = require('aws-sdk');
@@ -26,7 +26,7 @@ exports.handler = async (event, context) => {
 
     try {
         // Holt das Bild aus dem Bucket
-        const data = await s3.getObjet({ Bucket: bucket, Key: key }).promise();
+        const data = await s3.getObject({ Bucket: bucket, Key: key }).promise();
         const image = sharp(data.Body);
 
         // Bildgrösse anpassen
