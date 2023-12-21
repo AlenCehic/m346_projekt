@@ -2,8 +2,6 @@
 # Datum: 07.12.2023
 # Skript zur Erstellung der Lambda Funktionen und der Buckets
 
-BUCKET_NAME_ORIGINAL=$(aws lambda get-function-configuration --function-name compressImage --environment "{ \"Variables\": $BUCKET_NAME_ORIGINAL }")
-BUCKET_NAME_COMPRESSED=$(aws lambda get-function-configuration --function-name compressImage --environment "{ \"Variables\": $BUCKET_NAME_COMPRESSED }")
 echo $BUCKET_NAME_COMPRESSED
 echo $BUCKET_NAME_ORIGINAL
 PERCENTAGE_RESIZE=0
@@ -152,7 +150,6 @@ while [[ "$BUCKET_NAME_ORIGINAL" == "" ]]; do
         echo ""
         echo "-------------------------"
         echo ""
-        aws s3api create-bucket --bucket "$BUCKET_NAME_ORIGINAL" --region us-east-1
         echo "-------------------------"
         break
     else
@@ -168,7 +165,7 @@ while [[ "$BUCKET_NAME_COMPRESSED" == "" ]]; do
 
     RESULT=$(aws s3api head-bucket --bucket $BUCKET_NAME_COMPRESSED 2>&1)
 
-    if [[ $RESULT == *"not Found"* ]]; then
+    if [[ $RESULT == *"Not Found"* ]]; then
         echo ""
         echo "Bucket $BUCKET_NAME_COMPRESSED ist verfuegbar"
         echo ""
@@ -176,7 +173,6 @@ while [[ "$BUCKET_NAME_COMPRESSED" == "" ]]; do
         echo ""
         echo "------------------------"
         echo ""
-        aws s3api create-bucket --bucket "$BUCKET_NAME_COMPRESSED" --region us-east-1
         echo "------------------------"
         break
     else
@@ -198,30 +194,37 @@ while [[ ! "$PERCENTAGE_RESIZE" ]]; do
     fi
 done
 
-aws lambda delete-function --function-name smallImage
+aws s3api create-bucket --bucket "$BUCKET_NAME_COMPRESSED" --region us-east-1
 
-aws lambda create-function --function-name smallImage --runtime nodejs18.x --role ARN:aws:iam::$ARN:role/LabRole --handler lambdaScript.handler --zip-file fileb://.lambdaScript.zip --memory-size 256
+aws s3api create-bucket --bucket "$BUCKET_NAME_ORIGINAL" --region us-east-1
 
-aws lambda add-permission --function-name smallImage --action "lambda:InvokeFunction" --principal s3.amazon.com --source-ARN ARN:aws:s3:::$BUCKET_NAME_ORIGINAL --statement-id "$BUCKET_NAME_ORIGINAL"
+if aws lambda get-function --function-name smallImage 2>/dev/null; then
 
-aws s3api put-bucket-notification-configuration --bucket "$BUCKET_NAME_ORIGINAL" --notification-configuration '{
-    "LambdaFunctionConfigurations": [
-        {
-            "LambdaFunctionARN": "ARN:aws:lambda:us-east-1:'$ARN':function:smallImage",
-            "Events": [
-                "s3:ObjectCreated:Put"
-            ]
-        }
-    ]
-}'
+    aws lambda delete-function --function-name smallImage
 
-aws lambda update-function-configuration --function-name smallImage --environment "Variables={BUCKET_NAME_ORIGINAL=$BUCKET_NAME_ORIGINAL,BUCKET_NAME_COMPRESSED=$BUCKET_NAME_COMPRESSED,PERCENTAGE_RESIZE=$PERCENTAGE_RESIZE}" --query "Environment"
+    aws lambda create-function --function-name smallImage --runtime nodejs18.x --role ARN:aws:iam::$ARN:role/LabRole --handler lambdaScript.handler --zip-file fileb://.lambdaScript.zip --memory-size 256
 
-aws s3 cp ./testimage/enchantments.png s3://$BUCKET_NAME_ORIGINAL/enchantments.png
+    aws lambda add-permission --function-name smallImage --action "lambda:InvokeFunction" --principal s3.amazon.com --source-ARN ARN:aws:s3:::$BUCKET_NAME_ORIGINAL --statement-id "$BUCKET_NAME_ORIGINAL"
 
-LATEST_IMAGE=$(aws s3 ls s3://$BUCKET_NAME_COMPRESSED --recursive | sort | tail -n 1 | awk '{print $4}')
+    aws s3api put-bucket-notification-configuration --bucket "$BUCKET_NAME_ORIGINAL" --notification-configuration '{
+        "LambdaFunctionConfigurations": [
+            {
+                "LambdaFunctionARN": "ARN:aws:lambda:us-east-1:'$ARN':function:smallImage",
+                "Events": [
+                    "s3:ObjectCreated:Put"
+                ]
+            }
+        ]
+    }'
 
-echo "Das Bild kann gefunden werden unter: blabla"
+    aws lambda update-function-configuration --function-name smallImage --environment "Variables={BUCKET_NAME_ORIGINAL=$BUCKET_NAME_ORIGINAL,BUCKET_NAME_COMPRESSED=$BUCKET_NAME_COMPRESSED,PERCENTAGE_RESIZE=$PERCENTAGE_RESIZE}" --query "Environment"
 
-aws s3 cp s3://$BUCKET_NAME_COMPRESSED/$LATEST_IMAGE #pathToOutput
+    aws s3 cp ./testimage/enchantments.png s3://$BUCKET_NAME_ORIGINAL/enchantments.png
+
+    LATEST_IMAGE=$(aws s3 ls s3://$BUCKET_NAME_COMPRESSED --recursive | sort | tail -n 1 | awk '{print $4}')
+
+    echo "Das Bild kann gefunden werden unter: blabla"
+
+    aws s3 cp s3://$BUCKET_NAME_COMPRESSED/$LATEST_IMAGE #pathToOutput
+    
 fi
