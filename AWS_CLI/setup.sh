@@ -185,7 +185,7 @@ while true; do
         echo "------------------------"
         break
     else
-        echo "Bucket $BUCKET_NAME_COMPRESSED not avaiable, try again"
+        echo "Bucket $BUCKET_NAME_COMPRESSED ist nicht verfuegbar, bitte erneut versuchen"
         echo ""
         echo "------------------------"
         echo ""
@@ -196,23 +196,25 @@ while [[ ! "$PERCENTAGE_RESIZE" ]]; do
     read -p "Prozentsatz fuer Verkleinerung angeben (ganze Zahl, kein Prozentzeichen): " PERCENTAGE_RESIZE
 
     if [[ $PERCENTAGE_RESIZE =~ ^[0-9]+$ ]]; then
+    	echo ""
         echo "$PERCENTAGE_RESIZE% eingegeben."
+        echo ""
+        echo ""
+        echo "Bitte haben sie geduld..."
         break
     else
         echo "Fehler: Prozentsatz nicht gültig."
     fi
 done
 
-echo "bitte warten... "
+aws s3api create-bucket --bucket "$BUCKET_NAME_COMPRESSED" --region us-east-1 > /dev/null 2>&1
 
-aws s3api create-bucket --bucket "$BUCKET_NAME_COMPRESSED" --region us-east-1
+aws s3api create-bucket --bucket "$BUCKET_NAME_ORIGINAL" --region us-east-1 > /dev/null 2>&1
 
-aws s3api create-bucket --bucket "$BUCKET_NAME_ORIGINAL" --region us-east-1
+if ! aws lambda get-function --function-name compressImage > /dev/null 2>&1; then
+    aws lambda create-function --function-name compressImage --runtime nodejs18.x --role arn:aws:iam::$ARN:role/LabRole --handler lambdaScript.handler --zip-file fileb://lambdaScript.zip --memory-size 256 > /dev/null 2>&1
 
-if ! aws lambda get-function --function-name compressImage 2>/dev/null; then
-    aws lambda create-function --function-name compressImage --runtime nodejs18.x --role arn:aws:iam::$ARN:role/LabRole --handler lambdaScript.handler --zip-file fileb://lambdaScript.zip --memory-size 256 --timeout 900
-
-    aws lambda add-permission --function-name compressImage --action "lambda:InvokeFunction" --principal s3.amazonaws.com --source-arn "arn:aws:s3:::$BUCKET_NAME_ORIGINAL" --statement-id "$BUCKET_NAME_ORIGINAL"
+    aws lambda add-permission --function-name compressImage --action "lambda:InvokeFunction" --principal s3.amazonaws.com --source-arn "arn:aws:s3:::$BUCKET_NAME_ORIGINAL" --statement-id "$BUCKET_NAME_ORIGINAL" > /dev/null 2>&1
 
     aws s3api put-bucket-notification-configuration --bucket "$BUCKET_NAME_ORIGINAL" --notification-configuration '{
         "LambdaFunctionConfigurations": [
@@ -223,9 +225,9 @@ if ! aws lambda get-function --function-name compressImage 2>/dev/null; then
                 ]
             }
         ]
-    }'
+    }' > /dev/null 2>&1
 
-    aws lambda update-function-configuration --function-name compressImage --environment "Variables={BUCKET_NAME_ORIGINAL=$BUCKET_NAME_ORIGINAL,BUCKET_NAME_COMPRESSED=$BUCKET_NAME_COMPRESSED,PERCENTAGE_RESIZE=$PERCENTAGE_RESIZE}" --query "Environment"
+    aws lambda update-function-configuration --function-name compressImage --environment "Variables={BUCKET_NAME_ORIGINAL=$BUCKET_NAME_ORIGINAL,BUCKET_NAME_COMPRESSED=$BUCKET_NAME_COMPRESSED,PERCENTAGE_RESIZE=$PERCENTAGE_RESIZE}" --query "Environment" > /dev/null 2>&1
 fi
 
 # Stelle sicher, dass die Umgebungsvariablen Werte enthalten
@@ -234,10 +236,12 @@ if [ -z "$BUCKET_NAME_ORIGINAL" ] || [ -z "$BUCKET_NAME_COMPRESSED" ] || [ ! "$P
     exit 1
 fi
 
-aws s3 cp ./testimage/placeholder-gbs.jpeg s3://$BUCKET_NAME_ORIGINAL/placeholder-gbs.jpeg
+aws s3 cp ./testimage/placeholder-gbs.png s3://$BUCKET_NAME_ORIGINAL/placeholder-gbs.png > /dev/null 2>&1
+
+sleep 30
 
 LATEST_IMAGE=$(aws s3 ls s3://$BUCKET_NAME_COMPRESSED --recursive | sort | tail -n 1 | awk '{print $4}')
 
+aws s3 cp s3://$BUCKET_NAME_COMPRESSED/$LATEST_IMAGE "./" > /dev/null 2>&1
 
-aws s3 cp s3://$BUCKET_NAME_COMPRESSED/$LATEST_IMAGE /home
-echo "Das Bild kann gefunden werden unter: home"
+echo "Das Bild kann im aktuellen Ordner gefunden werden"
