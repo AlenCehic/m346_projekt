@@ -1,6 +1,12 @@
 # Autor: Alen Cehic, Matthias Hug
 # Datum: 07.12.2023
 # Skript zur Erstellung der Lambda Funktionen und der Buckets
+#
+# Quellen:
+# -ChatGPT
+# -Codevorlage von oberstift
+# -Klassenkameraden
+# -Silvio DallAcqua
 
 echo "Bitte warten..."
 

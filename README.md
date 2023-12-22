@@ -17,6 +17,8 @@ Ubuntu 22.04
 
 Standartmässig wird das erste mal ein Setup durchgeführt. Mit diesem werden die Buckets erstellt und gewisse Systemumgebungsvariablen gesetzt, wenn diese Systemumgebungsvariablen bereits exestieren, kommt man in ein Menu in welchem man verscheidene aktionen durchführen kann, wie den Bucket ändern, die Prozentwerte ändern, usw.
 
+> **Warnung:** Wenn man explizit ein setup machen will, darf man keine exestierende lambdafunktion mit dem namen "compressImage" haben!
+
 ## Gebrauchte Pakete in der Lambda Funktion
 
 - aws-sdk
