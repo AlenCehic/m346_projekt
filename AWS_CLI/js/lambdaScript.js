@@ -38,7 +38,7 @@ exports.handler = async (event, context) => {
         // Ladet das BIld in den Bucket hoch
         await s3.putObject({
             Body: resizedImage,
-            Bucket: s3.listObjects({ Bucket: process.env.BUCKET_NAME_COMPRESSED }).params,
+            Bucket: s3.listObjects(process.env.BUCKET_NAME_COMPRESSED).params,
             Key: `resized-${key}`,
             ContentType: 'image/jpeg'
         }).promise();
