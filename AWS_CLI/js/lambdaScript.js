@@ -31,7 +31,7 @@ exports.handler = async (event, context) => {
 
         // Bildgrösse anpassen
         const metadata = await image.metadata();
-        let size = Math.round(metadata.with * percentageResize / 100);
+        let size = Math.round(metadata.width * percentageResize / 100);
         console.log(`Resizing ${key} to ${size}`);
         let resizedImage = await image.resize(size).toBuffer();
 
