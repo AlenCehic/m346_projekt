@@ -210,7 +210,7 @@ aws s3api create-bucket --bucket "$BUCKET_NAME_COMPRESSED" --region us-east-1
 aws s3api create-bucket --bucket "$BUCKET_NAME_ORIGINAL" --region us-east-1
 
 if ! aws lambda get-function --function-name compressImage 2>/dev/null; then
-    aws lambda create-function --function-name compressImage --runtime nodejs18.x --role arn:aws:iam::$ARN:role/LabRole --handler lambdaScript.handler --zip-file fileb://lambdaScript.zip --memory-size 256
+    aws lambda create-function --function-name compressImage --runtime nodejs18.x --role arn:aws:iam::$ARN:role/LabRole --handler lambdaScript.handler --zip-file fileb://lambdaScript.zip --memory-size 256 --timeout 900
 
     aws lambda add-permission --function-name compressImage --action "lambda:InvokeFunction" --principal s3.amazonaws.com --source-arn "arn:aws:s3:::$BUCKET_NAME_ORIGINAL" --statement-id "$BUCKET_NAME_ORIGINAL"
 
@@ -239,5 +239,5 @@ aws s3 cp ./testimage/placeholder-gbs.jpeg s3://$BUCKET_NAME_ORIGINAL/placeholde
 LATEST_IMAGE=$(aws s3 ls s3://$BUCKET_NAME_COMPRESSED --recursive | sort | tail -n 1 | awk '{print $4}')
 
 
-aws s3 cp s3://$BUCKET_NAME_COMPRESSED/$LATEST_IMAGE "/home"
+aws s3 cp s3://$BUCKET_NAME_COMPRESSED/$LATEST_IMAGE /home
 echo "Das Bild kann gefunden werden unter: home"
